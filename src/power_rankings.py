@@ -106,7 +106,6 @@ def evaluate_matchups(schedule, weeks):
 
 	for i in teams:
 		exp_win_pct = float(i.wins/(i.wins + i.losses))
-		print(i.name, exp_win_pct)
 		num_weeks = weeks
 		i.luck = i.luck + (i.actual_wins - ((exp_win_pct) * num_weeks))
 
@@ -130,8 +129,8 @@ def graph_stats():
 
 def main():
 	initialize_teams()
-	year = 2019
-	weeks = 1
+	year = 2015
+	weeks = 13
 	while year <= END_YEAR:
 		schedule = f'../data/{LEAGUE}/{year}/schedule.htm'
 		if (year == 2019):
