@@ -14,7 +14,7 @@ import statistics
 import numpy as np
 from pyquery import PyQuery as pq
 
-END_YEAR = 2019
+END_YEAR = 2018
 TEAM_NUM = 10
 LEAGUE = 'nhs'
 NHS_TEAM_NAMES = ['Evan Turner','Ryan Wentworth','Jack Gowetski','Alex Caulfield','Brendan Chin','Aiden O\'Connor','Giulian Trabucco','auggie coll','Dante Coppola','Ben Newman']
@@ -45,7 +45,7 @@ def initialize_teams():
 	else:
 		print('error')
 
-def evaluate_matchups(schedule, weeks):
+def evaluate_matchups(schedule, weeks, year):
 	with open(schedule) as f:
 		html = f.read()
 	doc = pq(html)
@@ -55,12 +55,28 @@ def evaluate_matchups(schedule, weeks):
 		matchup = matchups.eq(week)('tbody')
 		#get weekly scores
 		for m in matchup('tr').items():
-			a_team = [x for x in teams if x.name == m('.team-owner-col').eq(0).text()][0]
-			h_team = [x for x in teams if x.name == m('.team-owner-col').eq(1).text()][0]
-			if(week == 0):
-				a_team.actual_wins = a_team.actual_wins + float(m('.team-record').eq(0).text()[1:m('.team-record').eq(0).text().index("-")])
-				h_team.actual_wins = h_team.actual_wins + float(m('.team-record').eq(1).text()[1:m('.team-record').eq(1).text().index("-")])
+			a_name = m('.team-owner-col').eq(0).text()
+			h_name = m('.team-owner-col').eq(1).text()
+			if(year == 2012):
+				if (a_name == ""):
+					a_name = 'Ryan Wentworth'
+				elif(h_name == ""):
+					h_name = 'Ryan Wentworth'
 
+			if(year <= 2015):
+				if a_name == 'Kyle Bourke':
+					a_name = 'Brendan Chin'
+				elif h_name == 'Kyle Bourke':
+					h_name = 'Brendan Chin'
+
+			a_record = m('.team-record').eq(0).text()[1:m('.team-record').eq(0).text().index("-")]
+			h_record = m('.team-record').eq(1).text()[1:m('.team-record').eq(1).text().index("-")]
+
+			a_team = [x for x in teams if x.name == a_name][0]
+			h_team = [x for x in teams if x.name == h_name][0]
+			if(week == 0):
+				a_team.actual_wins = a_team.actual_wins + float(a_record)
+				h_team.actual_wins = h_team.actual_wins + float(h_record)
 			a_team.week_score = float(m('.link').eq(0).text())
 			h_team.week_score = float(m('.link').eq(1).text())
 		sorted_scores = sorted(teams, key=lambda x: x.week_score, reverse=True)
@@ -104,9 +120,10 @@ def evaluate_matchups(schedule, weeks):
 					break
 		week = week + 1
 
+def calculate_luck():
 	for i in teams:
 		exp_win_pct = float(i.wins/(i.wins + i.losses))
-		num_weeks = weeks
+		num_weeks = 91
 		i.luck = i.luck + (i.actual_wins - ((exp_win_pct) * num_weeks))
 
 def graph_stats():
@@ -129,13 +146,14 @@ def graph_stats():
 
 def main():
 	initialize_teams()
-	year = 2015
+	year = 2012
 	weeks = 13
-	while year <= END_YEAR:
-		schedule = f'../data/{LEAGUE}/{year}/schedule.htm'
+	while year <= 2018:
+		schedule = f'../data/{LEAGUE}/{year}/schedule{year}.htm'
 		if (year == 2019):
 			weeks = 1
-		evaluate_matchups(schedule, weeks)
+		evaluate_matchups(schedule, weeks, year)
+		calculate_luck()
 		year = year + 1
 	graph_stats()
 
