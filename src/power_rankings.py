@@ -14,7 +14,7 @@ import statistics
 import numpy as np
 from pyquery import PyQuery as pq
 
-END_YEAR = 2018
+END_YEAR = 2019
 TEAM_NUM = 10
 LEAGUE = 'nhs'
 NHS_TEAM_NAMES = ['Evan Turner','Ryan Wentworth','Jack Gowetski','Alex Caulfield','Brendan Chin','Aiden O\'Connor','Giulian Trabucco','auggie coll','Dante Coppola','Ben Newman']
@@ -24,6 +24,8 @@ class Team():
 	def __init__(self, name):
 		self.name = name
 		self.week_score = 0.0
+		self.pf = 0.0
+		self.pa = 0.0
 		self.wins = 0
 		self.losses = 0
 		self.ties = 0
@@ -33,7 +35,6 @@ class Team():
 		self.top_score = 0
 		self.low_score = 0
 		self.actual_wins = 0.0
-		self.avg_pf = 0
 		self.exp_wins = 0
 		self.std = 0
 
@@ -79,6 +80,11 @@ def evaluate_matchups(schedule, weeks, year):
 				h_team.actual_wins = h_team.actual_wins + float(h_record)
 			a_team.week_score = float(m('.link').eq(0).text())
 			h_team.week_score = float(m('.link').eq(1).text())
+			a_team.pf = a_team.pf + a_team.week_score
+			a_team.pa = a_team.pa + h_team.week_score
+			h_team.pf = h_team.pf + h_team.week_score
+			h_team.pa = h_team.pa + a_team.week_score
+
 		sorted_scores = sorted(teams, key=lambda x: x.week_score, reverse=True)
 		
 		count = TEAM_NUM-1
@@ -137,6 +143,8 @@ def graph_stats():
 		  "Lowest Scorer": [i.low_score for i in teams],
 		  "Luck": [i.luck for i in teams],
 		  "Actual Wins": [i.actual_wins for i in teams],
+		  "Points For": [i.pf for i in teams],
+		  "Points Against": [i.pa for i in teams]
 		  }
 
 	df = pd.DataFrame(scores)
@@ -148,7 +156,7 @@ def main():
 	initialize_teams()
 	year = 2012
 	weeks = 13
-	while year <= 2018:
+	while year <= END_YEAR:
 		schedule = f'../data/{LEAGUE}/{year}/schedule{year}.htm'
 		if (year == 2019):
 			weeks = 1
