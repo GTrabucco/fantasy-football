@@ -17,13 +17,13 @@ from pyquery import PyQuery as pq
 END_YEAR = 2019
 TEAM_NUM = 10
 LEAGUE = 'nhs'
-NHS_TEAM_NAMES = ['Evan Turner','Ryan Wentworth','Jack Gowetski','Alex Caulfield','Brendan Chin','Aiden O\'Connor','Giulian Trabucco','auggie coll','Dante Coppola','Ben Newman']
 teams = []
 
 class Team():
 	def __init__(self, name):
 		self.name = name
 		self.week_score = 0.0
+		self.week_opp = None
 		self.pf = 0.0
 		self.pa = 0.0
 		self.wins = 0
@@ -37,14 +37,8 @@ class Team():
 		self.actual_wins = 0.0
 		self.exp_wins = 0
 		self.std = 0
-
-def initialize_teams():
-	if (LEAGUE == 'nhs'):	
-		for team in NHS_TEAM_NAMES:
-			t = Team(team)
-			teams.append(t)
-	else:
-		print('error')
+		self.shelled = 0
+		self.tuna = 0
 
 def evaluate_matchups(schedule, weeks, year):
 	with open(schedule) as f:
@@ -57,25 +51,32 @@ def evaluate_matchups(schedule, weeks, year):
 		#get weekly scores
 		for m in matchup('tr').items():
 			a_name = m('.team-owner-col').eq(0).text()
-			h_name = m('.team-owner-col').eq(1).text()
-			if(year == 2012):
-				if (a_name == ""):
-					a_name = 'Ryan Wentworth'
-				elif(h_name == ""):
-					h_name = 'Ryan Wentworth'
+			if (a_name == ""):
+				a_name = 'Ryan Wentworth'
+			elif a_name == 'Kyle Bourke':
+				a_name = 'Brendan Chin'
 
-			if(year <= 2015):
-				if a_name == 'Kyle Bourke':
-					a_name = 'Brendan Chin'
-				elif h_name == 'Kyle Bourke':
-					h_name = 'Brendan Chin'
+			if any(t.name == a_name for t in teams) == False:
+				teams.append(Team(a_name))
+
+			h_name = m('.team-owner-col').eq(1).text()
+			if(h_name == ""):
+				h_name = 'Ryan Wentworth'
+			elif h_name == 'Kyle Bourke':
+				h_name = 'Brendan Chin'
+
+			if any(t.name == h_name for t in teams) == False:
+				teams.append(Team(h_name))
 
 			a_record = m('.team-record').eq(0).text()[1:m('.team-record').eq(0).text().index("-")]
 			h_record = m('.team-record').eq(1).text()[1:m('.team-record').eq(1).text().index("-")]
 
 			a_team = [x for x in teams if x.name == a_name][0]
 			h_team = [x for x in teams if x.name == h_name][0]
-			if(week == 0):
+			a_team.week_opp = h_team
+			h_team.week_opp = a_team
+
+			if(week == 3):
 				a_team.actual_wins = a_team.actual_wins + float(a_record)
 				h_team.actual_wins = h_team.actual_wins + float(h_record)
 			a_team.week_score = float(m('.link').eq(0).text())
@@ -117,9 +118,11 @@ def evaluate_matchups(schedule, weeks, year):
 
 					if(count == (TEAM_NUM-1)):
 						j.top_score = j.top_score + 1
+						j.week_opp.shelled = j.week_opp.shelled + 1
 
 					if(count == 0):
 						j.low_score = j.low_score + 1
+						j.week_opp.tuna = j.week_opp.tuna + 1
 
 					prev = i
 					count = count - 1
@@ -129,7 +132,7 @@ def evaluate_matchups(schedule, weeks, year):
 def calculate_luck():
 	for i in teams:
 		exp_win_pct = float(i.wins/(i.wins + i.losses))
-		num_weeks = 91
+		num_weeks = 4
 		i.luck = i.luck + (i.actual_wins - ((exp_win_pct) * num_weeks))
 
 def graph_stats():
@@ -144,22 +147,23 @@ def graph_stats():
 		  "Luck": [i.luck for i in teams],
 		  "Actual Wins": [i.actual_wins for i in teams],
 		  "Points For": [i.pf for i in teams],
-		  "Points Against": [i.pa for i in teams]
+		  "Points Against": [i.pa for i in teams],
+		  "Shelled": [i.shelled for i in teams],
+		  "Tuna": [i.tuna for i in teams]
 		  }
 
 	df = pd.DataFrame(scores)
 	df.set_index('Team', inplace=True)
-	df.sort_values(by=['Wins'], ascending=False, inplace=True)
+	df.sort_values(by=['Wins', "Points For"], ascending=False, inplace=True)
 	print(df)
 
 def main():
-	initialize_teams()
-	year = 2012
+	year = 2019
 	weeks = 13
 	while year <= END_YEAR:
 		schedule = f'../data/{LEAGUE}/{year}/schedule{year}.htm'
 		if (year == 2019):
-			weeks = 1
+			weeks = 4
 		evaluate_matchups(schedule, weeks, year)
 		calculate_luck()
 		year = year + 1
