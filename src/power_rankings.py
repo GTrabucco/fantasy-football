@@ -13,11 +13,13 @@ import operator
 import statistics
 import numpy as np
 from pyquery import PyQuery as pq
+from IPython.display import display, HTML
 
 END_YEAR = 2019
-TEAM_NUM = 10
-LEAGUE = 'nhs'
+TEAM_NUM = 12
+LEAGUE = 'dm'
 teams = []
+CURRENT_WEEKS = 7
 
 class Team():
 	def __init__(self, name):
@@ -39,6 +41,9 @@ class Team():
 		self.std = 0
 		self.shelled = 0
 		self.tuna = 0
+		self.prev_rank = 0
+		self.rank = 0
+		self.position = 0
 
 def evaluate_matchups(schedule, weeks, year):
 	with open(schedule) as f:
@@ -76,7 +81,7 @@ def evaluate_matchups(schedule, weeks, year):
 			a_team.week_opp = h_team
 			h_team.week_opp = a_team
 
-			if(week == 3):
+			if(week == CURRENT_WEEKS-1):
 				a_team.actual_wins = a_team.actual_wins + float(a_record)
 				h_team.actual_wins = h_team.actual_wins + float(h_record)
 			a_team.week_score = float(m('.link').eq(0).text())
@@ -127,17 +132,52 @@ def evaluate_matchups(schedule, weeks, year):
 					prev = i
 					count = count - 1
 					break
+		if CURRENT_WEEKS != 13 and week == (CURRENT_WEEKS-2):
+			graph = graph_stats()
+			place = 1
+			for index, row in graph.iterrows():
+				team = [x for x in teams if x.name == index][0]
+				team.prev_rank = place
+				place = place + 1
+
 		week = week + 1
+
+	graph = graph_stats()
+	place = 1
+	for index, row in graph.iterrows():
+		team = [x for x in teams if x.name == index][0]
+		team.rank = place
+		place = place + 1
+
+	for team in teams:
+		difference = team.prev_rank - team.rank
+		if difference < 0:
+			team.position = "-" + str(abs(difference))
+		elif difference == 0:
+			team.position = "--"
+		else:
+			team.position = "+" + str(abs(difference))
 
 def calculate_luck():
 	for i in teams:
 		exp_win_pct = float(i.wins/(i.wins + i.losses))
-		num_weeks = 4
-		i.luck = i.luck + (i.actual_wins - ((exp_win_pct) * num_weeks))
+		i.luck = i.luck + (i.actual_wins - ((exp_win_pct) * CURRENT_WEEKS))
+
+def color_values(val):
+	color = 'white'
+	if val[0] == "+":
+		color = 'green'
+	elif val[0] == "-":
+		color = 'green'
+	else:
+		color = 'red'
+	return 'color: %s' % color
 
 def graph_stats():
 	style.use('ggplot')
-	scores = {"Team": [i.name for i in teams],
+	scores = {
+	      "Change": [i.position for i in teams],
+		  "Team": [i.name for i in teams],
 		  "Wins": [i.wins for i in teams],
 		  "Loses": [i.losses for i in teams],
 		  "Highest": [i.highest for i in teams],
@@ -149,12 +189,16 @@ def graph_stats():
 		  "Points For": [i.pf for i in teams],
 		  "Points Against": [i.pa for i in teams],
 		  "Shelled": [i.shelled for i in teams],
-		  "Tuna": [i.tuna for i in teams]
+		  "Lowest Faced": [i.tuna for i in teams]
 		  }
 
 	df = pd.DataFrame(scores)
 	df.set_index('Team', inplace=True)
 	df.sort_values(by=['Wins', "Points For"], ascending=False, inplace=True)
+	return df	
+
+def print_stats(df):
+	df.style.applymap(color_values, subset=['Change']).render() #doesnt work in terminal
 	print(df)
 
 def main():
@@ -163,10 +207,11 @@ def main():
 	while year <= END_YEAR:
 		schedule = f'../data/{LEAGUE}/{year}/schedule{year}.htm'
 		if (year == 2019):
-			weeks = 4
+			weeks = CURRENT_WEEKS
 		evaluate_matchups(schedule, weeks, year)
 		calculate_luck()
 		year = year + 1
-	graph_stats()
+	graph = graph_stats()
+	print_stats(graph)
 
 main()
